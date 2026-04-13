@@ -1,5 +1,7 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api/v1';
 
+let refreshInFlight: Promise<string | null> | null = null;
+
 /** Parse JSON from a response body string; avoids "Unexpected end of JSON input" on empty bodies. */
 function parseJsonBody<T>(text: string, context: string): T {
   const t = text.trim();
@@ -26,23 +28,85 @@ function errorMessageFromBody(text: string, status: number): string {
   }
 }
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('submify_access_token') : null;
-  const headers = new Headers({ 'Content-Type': 'application/json' });
-  if (init?.headers) {
-    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-  }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
+}
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
+function clearSessionAndGoToLogin(): void {
+  if (!isBrowser()) return;
+  localStorage.removeItem('submify_access_token');
+  localStorage.removeItem('submify_refresh_token');
+  localStorage.removeItem('submify_user_api_key');
+  localStorage.removeItem('submify_user_name');
+  localStorage.removeItem('submify_user_phone');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!isBrowser()) return null;
+  const refreshToken = localStorage.getItem('submify_refresh_token');
+  if (!refreshToken) return null;
+
+  const res = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken }),
     cache: 'no-store'
   });
-
   const text = await res.text();
+  if (!res.ok) {
+    return null;
+  }
+  const data = parseJsonBody<{ access_token?: string; refresh_token?: string }>(text, 'auth/refresh');
+  if (!data.access_token || !data.refresh_token) {
+    return null;
+  }
+  localStorage.setItem('submify_access_token', data.access_token);
+  localStorage.setItem('submify_refresh_token', data.refresh_token);
+  return data.access_token;
+}
+
+async function getRefreshedAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = refreshAccessToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const request = async (token: string | null): Promise<Response> => {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    }
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      cache: 'no-store'
+    });
+  };
+
+  const token = isBrowser() ? localStorage.getItem('submify_access_token') : null;
+  let res = await request(token);
+  let text = await res.text();
+
+  if (!res.ok && res.status === 401) {
+    const refreshed = await getRefreshedAccessToken();
+    if (refreshed) {
+      res = await request(refreshed);
+      text = await res.text();
+    } else if (isBrowser()) {
+      clearSessionAndGoToLogin();
+    }
+  }
+
   if (!res.ok) {
     throw new Error(errorMessageFromBody(text, res.status));
   }
