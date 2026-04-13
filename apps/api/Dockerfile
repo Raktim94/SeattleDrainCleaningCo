@@ -1,6 +1,7 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /src
 COPY . .
+# Transitive deps (e.g. via gin) may require Go 1.23+; image must match.
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/submify-api ./cmd/server
 
 FROM alpine:3.20
