@@ -1,5 +1,31 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api/v1';
 
+/** Parse JSON from a response body string; avoids "Unexpected end of JSON input" on empty bodies. */
+function parseJsonBody<T>(text: string, context: string): T {
+  const t = text.trim();
+  if (!t) {
+    throw new Error(`${context}: empty response body`);
+  }
+  try {
+    return JSON.parse(t) as T;
+  } catch {
+    throw new Error(t.length > 280 ? `${t.slice(0, 280)}…` : t);
+  }
+}
+
+function errorMessageFromBody(text: string, status: number): string {
+  const t = text.trim();
+  if (!t) {
+    return `Request failed (${status})`;
+  }
+  try {
+    const j = JSON.parse(t) as { error?: string };
+    return j.error ?? t;
+  } catch {
+    return t;
+  }
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('submify_access_token') : null;
   const headers = new Headers({ 'Content-Type': 'application/json' });
@@ -16,16 +42,20 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     cache: 'no-store'
   });
 
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Request failed with ${res.status}`);
+    throw new Error(errorMessageFromBody(text, res.status));
   }
-  return res.json();
+  return parseJsonBody<T>(text, path);
 }
 
 export async function getBootstrapStatus(): Promise<{ setup_required: boolean }> {
   const res = await fetch(`${API_BASE}/system/bootstrap-status`, { cache: 'no-store' });
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(errorMessageFromBody(text, res.status));
+  }
+  return parseJsonBody<{ setup_required: boolean }>(text, 'bootstrap-status');
 }
 
 export type MeResponse = {
@@ -63,24 +93,11 @@ export async function registerAccount(body: {
     body: JSON.stringify(body),
     cache: 'no-store'
   });
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    try {
-      const j = JSON.parse(text) as { error?: string };
-      throw new Error(j.error ?? text);
-    } catch (e) {
-      if (e instanceof Error && e.message !== text) throw e;
-      throw new Error(text || `Request failed with ${res.status}`);
-    }
+    throw new Error(errorMessageFromBody(text, res.status));
   }
-  return res.json() as Promise<{
-    access_token: string;
-    refresh_token: string;
-    api_key: string;
-    email: string;
-    full_name: string;
-    phone: string;
-  }>;
+  return parseJsonBody(text, 'auth/register');
 }
 
 export type IntegrationsPatch = Partial<{

@@ -21,24 +21,40 @@ export default function LoginPage() {
       body: JSON.stringify(payload)
     });
 
+    const text = await res.text();
     if (!res.ok) {
-      const text = await res.text();
+      const t = text.trim();
+      if (!t) {
+        setError(`Sign-in failed (${res.status})`);
+        return;
+      }
       try {
-        const j = JSON.parse(text) as { error?: string };
-        setError(j.error ?? text);
+        const j = JSON.parse(t) as { error?: string };
+        setError(j.error ?? t);
       } catch {
-        setError(text);
+        setError(t);
       }
       return;
     }
 
-    const data = (await res.json()) as {
+    if (!text.trim()) {
+      setError('Empty response from server');
+      return;
+    }
+
+    let data: {
       access_token: string;
       refresh_token: string;
       api_key?: string;
       full_name?: string;
       phone?: string;
     };
+    try {
+      data = JSON.parse(text) as typeof data;
+    } catch {
+      setError('Invalid response from server');
+      return;
+    }
     localStorage.setItem('submify_access_token', data.access_token);
     localStorage.setItem('submify_refresh_token', data.refresh_token);
     if (typeof data.api_key === 'string') {
