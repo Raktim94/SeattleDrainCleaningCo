@@ -17,3 +17,18 @@ input, select, textarea {
 button {
   @apply rounded-md bg-brand-500 px-4 py-2 text-white hover:bg-brand-700;
 }
+
+@layer utilities {
+  .landing-grid {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.08) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(120deg, #4f46e5 0%, #7c3aed 35%, #0ea5e9 100%);
+    background-size: 200% auto;
+  }
+}

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jung-kurt/gofpdf"
@@ -61,13 +60,7 @@ func (s *Server) Router() *gin.Engine {
 	if err := r.SetTrustedProxies(s.cfg.TrustedProxies); err != nil {
 		log.Printf("SetTrustedProxies: %v", err)
 	}
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     s.cfg.AllowedOrigins,
-		AllowMethods:     []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Authorization", "Content-Type", "x-api-key"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	r.Use(SubmifyCORS(s.cfg))
 
 	api := r.Group("/api/v1")
 	{

@@ -46,7 +46,15 @@ services:
       PORT: 8080
       DATABASE_URL: postgres://submify:${POSTGRES_PASSWORD:-submify}@db:5432/submify?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:2512}
+      # Browser CORS: list exact page origins (scheme+host+port), e.g. https://app.nodedr.com
+      # OR set CORS_ORIGIN_HOST_SUFFIXES=nodedr.com to allow any https?://*.nodedr.com (and https?://nodedr.com).
+      # LAN: CORS_RELAX_PRIVATE_NETWORKS=true allows http(s)://192.168.x.x:2512 without listing each IP.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:2512,http://127.0.0.1:2512}
+      CORS_RELAX_PRIVATE_NETWORKS: ${CORS_RELAX_PRIVATE_NETWORKS:-true}
+      # When true (default), Origin is allowed if it matches the public Host (and port) of this request — works with
+      # Cloudflare Tunnel / nginx without listing every hostname in ALLOWED_ORIGINS. Set false to require explicit lists only.
+      CORS_ALLOW_SAME_HOST_ORIGIN: ${CORS_ALLOW_SAME_HOST_ORIGIN:-true}
+      CORS_ORIGIN_HOST_SUFFIXES: ${CORS_ORIGIN_HOST_SUFFIXES:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       RATE_LIMIT_SENSITIVE_PUBLIC_RPM: ${RATE_LIMIT_SENSITIVE_PUBLIC_RPM:-25}
       RATE_LIMIT_SUBMIT_IP_RPM: ${RATE_LIMIT_SUBMIT_IP_RPM:-90}

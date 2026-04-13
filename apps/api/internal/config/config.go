@@ -12,7 +12,15 @@ type Config struct {
 	DatabaseURL                  string
 	JWTSecret                    string
 	AllowedOrigins               []string
-	TrustedProxies               []string
+	// CorsRelaxPrivateNetworks allows browser Origins on loopback, RFC1918, and link-local IPs
+	// when not explicitly listed in AllowedOrigins (self-hosted LAN access).
+	CorsRelaxPrivateNetworks bool
+	// CorsOriginHostSuffixes allows https?://*.suffix and https?://suffix (e.g. nodedr.com for api.nodedr.com).
+	CorsOriginHostSuffixes []string
+	// CorsAllowSameHostOrigin allows any Origin whose host:port matches this request (after X-Forwarded-*).
+	// Enables Cloudflare Tunnel / CasaOS-style single public URL without listing ALLOWED_ORIGINS per hostname.
+	CorsAllowSameHostOrigin bool
+	TrustedProxies          []string
 	AppVersion                   string
 	GitHubRepo                   string
 	UpdateCheckInterval          time.Duration
@@ -38,7 +46,10 @@ func Load() Config {
 		Port: getEnv("PORT", "8080"),
 		DatabaseURL:                 getEnv("DATABASE_URL", "postgres://submify:submify@db:5432/submify?sslmode=disable"),
 		JWTSecret:                   getEnv("JWT_SECRET", "change-this-in-production"),
-		AllowedOrigins:              splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:2512")),
+		AllowedOrigins:              splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:2512,http://127.0.0.1:2512")),
+		CorsRelaxPrivateNetworks:    getEnvBool("CORS_RELAX_PRIVATE_NETWORKS", true),
+		CorsOriginHostSuffixes:      splitCSV(getEnv("CORS_ORIGIN_HOST_SUFFIXES", "")),
+		CorsAllowSameHostOrigin:     getEnvBool("CORS_ALLOW_SAME_HOST_ORIGIN", true),
 		TrustedProxies:              trusted,
 		AppVersion:                  getEnv("APP_VERSION", "0.1.0"),
 		GitHubRepo:                  getEnv("GITHUB_REPO", "nodedr/submify"),
