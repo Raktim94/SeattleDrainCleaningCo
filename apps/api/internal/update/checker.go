@@ -148,7 +148,7 @@ func (c *Checker) fetchLatestFromTags() (string, error) {
 		return "", err
 	}
 	if len(list) == 0 || strings.TrimSpace(list[0].Name) == "" {
-		return "", fmt.Errorf("no tags for %s", repo)
+		return "", fmt.Errorf("no tags for %s (create a Git tag like v0.1.0 or publish a GitHub Release)", repo)
 	}
 	return list[0].Name, nil
 }
